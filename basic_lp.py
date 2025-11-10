@@ -7,14 +7,7 @@ from sklearn.model_selection import train_test_split
 
 class RobustLPClassifier:
     """
-    Basit Robust Linear Programming sınıflandırıcı (Bennett & Mangasarian, 1992)
-
-    Pozitif örnekler matrisi A, negatif örnekler matrisi B olsun.
-    Her satırın sonuna 1 ekleyerek bias'ı da w içine gömüyoruz:
-
         A = [X_pos, 1],  B = [X_neg, 1]
-
-    Çözdüğümüz LP:
 
         min  (1/m) * sum_i e_Ai  +  (1/k) * sum_j e_Bj
         s.t.
@@ -29,7 +22,7 @@ class RobustLPClassifier:
     """
 
     def __init__(self):
-        self.w_ = None   # (n_features + 1,)  bias dahil
+        self.w_ = None   # (n_features + 1,)  
         self.gamma_ = None
 
     def fit(self, X_pos, X_neg):
