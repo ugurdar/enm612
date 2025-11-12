@@ -195,13 +195,13 @@ $$
 Her çözümden elde edilen $\ell_i = |\{a_k \in A^l : g_i(a_k) \leq -1\}|$ (ayrıştırılan nokta sayısı) hesaplanır.
 
 **Avantajları:**
-- ✅ **Daha hızlı yakınsama**: En iyi koni pozisyonu seçilir
-- ✅ **Daha az iterasyon**: Her adımda maksimum sayıda nokta ayrıştırılır
-- ✅ **Daha iyi kalite**: Optimal tepe noktası konumu
+- **Daha hızlı yakınsama**: En iyi koni pozisyonu seçilir
+- **Daha az iterasyon**: Her adımda maksimum sayıda nokta ayrıştırılır
+- **Daha iyi kalite**: Optimal tepe noktası konumu
 
 **Dezavantajları:**
-- ❌ **Hesaplama maliyeti**: $|A^l|$ kez LP çözülmeli (küçük veri setleri için uygun)
-- ❌ **Büyük veri setlerinde yavaş**: $m$ büyükse her iterasyon pahalı
+- **Hesaplama maliyeti**: $|A^l|$ kez LP çözülmeli (küçük veri setleri için uygun)
+- **Büyük veri setlerinde yavaş**: $m$ büyükse her iterasyon pahalı
 
 **Ne Zaman Kullanılmalı?**
 - Veri seti küçük-orta boyutta ise ($m < 1000$ gibi)
@@ -211,71 +211,18 @@ Her çözümden elde edilen $\ell_i = |\{a_k \in A^l : g_i(a_k) \leq -1\}|$ (ayr
 **Alternatif Yaklaşım (Tam Optimal):**
 Referans nokta $a^l$'yi de **karar değişkeni** yapıp tek bir nonlinear optimizasyon problemi çözmek mümkündür, ancak bu LP'nin avantajını kaybettirir.
 
----
 
 ### Deneysel Sonuçlar: PCF vs Modified PCF
 
 Gasimov ve Ozturk (2006) çalışmalarında, PCF ve Modified PCF algoritmalarını 6 farklı UCI veri seti üzerinde 10-kat çapraz doğrulama ile karşılaştırmışlardır.
 
-**Veri Setleri:**
-1. **Liver** - Karaciğer hastalığı
-2. **WBCD** - Wisconsin Breast Cancer (Diagnostic)
-3. **WBCP** - Wisconsin Breast Cancer (Prognostic)
-4. **Ionosphere** - Radar sinyalleri
-5. **Heart** - Kalp hastalığı
-6. **Diabetes** - Diyabet
+Modified PCF, WBCD hariç tüm veri setlerinde test doğruluğunu artırmıştır.
+En büyük artış WBCP’de (+10.44 puan), ardından Heart (+9.77), Liver (+9.57), Diabetes (+8.99) ve Ionosphere (+7.70) gelmektedir.
+Ortalama LP sayısı belirgin şekilde azalmıştır (özellikle Heart: 74→27, −%64); bu da toplam süreyi genel olarak düşürür.
+Özetle: Daha yüksek test doğruluğu ve daha düşük toplam zaman; her iterasyon daha pahalı olsa da toplam iterasyon sayısı azaldığı için süre avantajı sağlanır.
 
-**Orijinal PCF Algoritması Sonuçları:**
+![PCF Grafiği](pcf_3d_multiview.png)
 
-| Veri Seti | Eğitim Doğruluğu | Test Doğruluğu | Ortalama LP Sayısı | Süre (sn) |
-|-----------|------------------|----------------|---------------------|-----------|
-| Liver | 100% | 68.40% | 114 | 16.84 |
-| WBCD | 100% | 100% | 1 | 0.58 |
-| WBCP | 100% | 75.77% | 18 | 4.44 |
-| Ionosphere | 100% | 88.03% | 5 | 0.84 |
-| Heart | 100% | 79.12% | 74 | 10.23 |
-| Diabetes | 100% | 71.48% | 216 | 44.17 |
-
-**Modified PCF Algoritması Sonuçları:**
-
-| Veri Seti | Eğitim Doğruluğu | Test Doğruluğu | Ortalama LP Sayısı | İyileşme |
-|-----------|------------------|----------------|--------------------|----------|
-| Liver | 100% | **77.97%** | 72 | ↑ 9.57% |
-| WBCP | 100% | **86.21%** | 12 | ↑ 10.44% |
-| Ionosphere | 100% | **95.73%** | 3 | ↑ 7.70% |
-| Heart | 100% | **88.89%** | 27 | ↑ 9.77% |
-| Diabetes | 100% | **80.47%** | 124 | ↑ 8.99% |
-
-*Not: WBCD veri seti için Modified PCF uygulanmadı çünkü orijinal algoritma zaten tek iterasyonda %100 doğruluk elde etti.*
-
-**Temel Bulgular:**
-
-1. **Test Doğruluğunda Önemli İyileşme:**
-   - Her veri setinde test doğruluğu **%7.7 - %10.4 arasında** arttı
-   - En yüksek iyileşme WBCP'de (%75.77 → %86.21)
-   - En düşük iyileşme Ionosphere'de (%88.03 → %95.73)
-
-2. **İterasyon Sayısında Azalma:**
-   - Ortalama LP çözüm sayısı **%33-63 arasında** azaldı
-   - Liver: 114 → 72 (↓ 37%)
-   - WBCP: 18 → 12 (↓ 33%)
-   - Ionosphere: 5 → 3 (↓ 40%)
-   - Heart: 74 → 27 (↓ 64%)
-   - Diabetes: 216 → 124 (↓ 43%)
-
-3. **Genelleme Kapasitesi:**
-   - Her iki algoritma da eğitim setinde %100 doğruluk elde etti
-   - Modified PCF'in test doğruluğu sistematik olarak daha yüksek
-   - Overfitting riski azaldı
-
-4. **Hesaplama Verimliliği:**
-   - Daha az iterasyon sayesinde toplam süre azaldı
-   - Ancak her iterasyonda daha fazla LP çözüldüğü için her iterasyon daha pahalı
-
-**Sonuç:**
-Modified PCF algoritması, optimal referans nokta seçimi sayesinde hem **daha iyi genelleme** hem de **daha az iterasyon** sağlar. Özellikle karmaşık yapılı veri setlerinde (Liver, Heart, Diabetes) iyileşme belirgindir (Gasimov & Ozturk, 2006).
-
----
 
 ### Referans
 
