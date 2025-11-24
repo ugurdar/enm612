@@ -3,24 +3,29 @@ H-Polyhedral ve Max-Min Separability Görselleştirme
 
 Bu script, iki boyutlu bir veri kümesi üzerinde H-Polyhedral ve Max-Min
 separability yöntemlerinin ayrıştırma biçimlerini görselleştirir.
+Hem 2D hem de 3D görselleştirme sunar.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import minimize
 
 # Veri kümesi oluşturma (lineer ayrılamayan)
 np.random.seed(42)
 
-# Sınıf A: Ortada yoğun bir küme
-A = np.random.randn(40, 2) * 0.6  # Merkezdeki pozitif örnekler
+# Sınıf A: İki ayrı mavi küme (merkez + sağ üst)
+A1 = np.random.randn(25, 2) * 0.5  # Merkezdeki mavi grup
+A2 = np.random.randn(15, 2) * 0.4 + np.array([4, 4])  # Sağ üst köşedeki mavi grup
+A = np.vstack([A1, A2])  # Sınıf A (pozitif) - 2 mavi grup
 
-# Sınıf B: Çevresinde halka şeklinde 4 grup
-B1 = np.random.randn(10, 2) * 0.4 + np.array([3, 0])    # Sağ
-B2 = np.random.randn(10, 2) * 0.4 + np.array([-3, 0])   # Sol  
-B3 = np.random.randn(10, 2) * 0.4 + np.array([0, 3])    # Üst
-B4 = np.random.randn(10, 2) * 0.4 + np.array([0, -3])   # Alt
-B = np.vstack([B1, B2, B3, B4])  # Sınıf B (negatif) - çevredeki 4 grup
+# Sınıf B: İki ayrı kırmızı grup (merkez çevresi + (2,2) noktası yakını)
+B1 = np.random.randn(12, 2) * 0.4 + np.array([3, 0])    # Merkez çevresi - Sağ
+B2 = np.random.randn(12, 2) * 0.4 + np.array([-3, 0])   # Merkez çevresi - Sol  
+B3 = np.random.randn(12, 2) * 0.4 + np.array([0, 3])    # Merkez çevresi - Üst
+B4 = np.random.randn(12, 2) * 0.4 + np.array([0, -3])   # Merkez çevresi - Alt
+B5 = np.random.randn(14, 2) * 0.35 + np.array([2.2, 2.2])  # (2.2, 2.2) noktası çevresi
+B = np.vstack([B1, B2, B3, B4, B5])  # Sınıf B (negatif) - 2 ayrı kırmızı grup
 
 # H-Polyhedral Loss Fonksiyonu
 def hpoly_loss(params, A, B, h):
@@ -64,44 +69,62 @@ def hpoly_loss(params, A, B, h):
 # Max-Min Loss Fonksiyonu
 def maxmin_loss(params, A, B, r, group_sizes):
     """
-    Max-Min loss fonksiyonu
+    Max-Min loss fonksiyonu (Bagirov 2005 makalesine göre)
+    Karar fonksiyonu: psi(x) = max_i { min_j∈G_i { w_j^T x - gamma_j } }
+    
+    A için: psi(a) ≤ -1
+    B için: psi(b) ≥ 1
+    
     params: düzleştirilmiş [w, gamma] parametreleri
     r: grup sayısı
     group_sizes: her gruptaki hiper-düzlem sayısı listesi
     """
     m, k = len(A), len(B)
+    total_planes = sum(group_sizes)
     
-    # Parametreleri gruplara ayır
-    groups = []
-    idx = 0
-    for g_size in group_sizes:
-        group_w = []
-        group_gamma = []
-        for _ in range(g_size):
-            group_w.append(np.array([params[idx], params[idx+1]]))
-            group_gamma.append(params[idx+2])
-            idx += 3
-        groups.append((group_w, group_gamma))
+    # Parametreleri çöz
+    w_list = []
+    gamma_list = []
+    for j in range(total_planes):
+        idx = j * 3
+        w_list.append(np.array([params[idx], params[idx+1]]))
+        gamma_list.append(params[idx+2])
     
-    # Sınıf A için hata
-    loss_A = 0
+    loss = 0.0
+    
+    # A için: psi(a) = max_i { min_j∈G_i { w_j^T a - gamma_j } } ≤ -1
     for a in A:
-        max_val = -np.inf
-        for w_list, gamma_list in groups:
-            min_val = min([w @ a - gamma + 1 for w, gamma in zip(w_list, gamma_list)])
-            max_val = max(max_val, min_val)
-        loss_A += max(0, max_val)
+        group_mins = []
+        plane_idx = 0
+        for i in range(r):
+            group_vals = []
+            for _ in range(group_sizes[i]):
+                val = np.dot(w_list[plane_idx], a) - gamma_list[plane_idx]
+                group_vals.append(val)
+                plane_idx += 1
+            group_mins.append(min(group_vals))
+        
+        psi_a = max(group_mins)
+        if psi_a > -1:
+            loss += max(0, psi_a + 1)**2
     
-    # Sınıf B için hata
-    loss_B = 0
+    # B için: psi(b) = max_i { min_j∈G_i { w_j^T b - gamma_j } } ≥ 1
     for b in B:
-        min_val = np.inf
-        for w_list, gamma_list in groups:
-            max_val = max([-w @ b + gamma + 1 for w, gamma in zip(w_list, gamma_list)])
-            min_val = min(min_val, max_val)
-        loss_B += max(0, min_val)
+        group_mins = []
+        plane_idx = 0
+        for i in range(r):
+            group_vals = []
+            for _ in range(group_sizes[i]):
+                val = np.dot(w_list[plane_idx], b) - gamma_list[plane_idx]
+                group_vals.append(val)
+                plane_idx += 1
+            group_mins.append(min(group_vals))
+        
+        psi_b = max(group_mins)
+        if psi_b < 1:
+            loss += (1 - psi_b)**2
     
-    return loss_A / m + loss_B / k
+    return loss / (m + k)
 
 # H-Polyhedral optimizasyonu (6 hiper-düzlem - daha iyi çokyüzlü)
 print("H-Polyhedral optimizasyonu başlıyor...")
@@ -110,19 +133,19 @@ x0_hpoly = np.random.randn(h * 3) * 0.1
 result_hpoly = minimize(hpoly_loss, x0_hpoly, args=(A, B, h), method='BFGS', 
                         options={'maxiter': 1000})
 
-w_hpoly = []
-gamma_hpoly = []
+w_list_hpoly = []
+gamma_list_hpoly = []
 for j in range(h):
     idx = j * 3
-    w_hpoly.append(np.array([result_hpoly.x[idx], result_hpoly.x[idx+1]]))
-    gamma_hpoly.append(result_hpoly.x[idx+2])
+    w_list_hpoly.append(np.array([result_hpoly.x[idx], result_hpoly.x[idx+1]]))
+    gamma_list_hpoly.append(result_hpoly.x[idx+2])
 
 print(f"H-Polyhedral Loss: {result_hpoly.fun:.4f}")
 
-# Max-Min optimizasyonu (4 grup, her grupta 1 hiper-düzlem - her B grubu için)
+# Max-Min optimizasyonu (2 grup, her grupta 3-4 hiper-düzlem - her mavi küme için)
 print("\nMax-Min optimizasyonu başlıyor...")
-r = 4
-group_sizes = [1, 1, 1, 1]  # Her yöndeki B grubu için bir düzlem
+r = 2
+group_sizes = [4, 3]  # Grup 1: 4 düzlem (merkez mavi), Grup 2: 3 düzlem (sağ üst mavi)
 total_planes = sum(group_sizes)
 x0_maxmin = np.random.randn(total_planes * 3) * 0.1
 result_maxmin = minimize(maxmin_loss, x0_maxmin, args=(A, B, r, group_sizes), 
@@ -159,7 +182,7 @@ for i in range(X_grid.shape[0]):
     for j in range(X_grid.shape[1]):
         x_point = np.array([X_grid[i, j], Y_grid[i, j]])
         # psi(x) = max_j { w_j^T x - gamma_j }
-        psi = max([w @ x_point - gamma for w, gamma in zip(w_hpoly, gamma_hpoly)])
+        psi = max([w @ x_point - gamma for w, gamma in zip(w_list_hpoly, gamma_list_hpoly)])
         Z_hpoly[i, j] = psi
 
 # Karar sınırı: psi(x) = 0
@@ -172,7 +195,7 @@ ax1.contourf(X_grid, Y_grid, Z_hpoly, levels=[-10, -1, 1, 10],
 
 # Hiper-düzlemleri çiz
 colors_hpoly = ['orange', 'purple', 'brown', 'pink', 'cyan', 'magenta']
-for idx, (w, gamma) in enumerate(zip(w_hpoly, gamma_hpoly)):
+for idx, (w, gamma) in enumerate(zip(w_list_hpoly, gamma_list_hpoly)):
     if abs(w[1]) > 1e-6:
         y_line = (gamma - w[0] * x_range) / w[1]
         ax1.plot(x_range, y_line, '--', color=colors_hpoly[idx], 
@@ -226,8 +249,8 @@ ax2.contourf(X_grid, Y_grid, Z_maxmin, levels=[-10, -1, 1, 10],
             colors=['lightblue', 'white', 'lightcoral'], alpha=0.3)
 
 # Gruplardaki hiper-düzlemleri farklı renklerde çiz
-# Her grup bir yöndeki B kümesini ayırmaya çalışır
-colors = ['orange', 'brown', 'green', 'cyan']
+# Her grup bir mavi kümeyi kırmızılardan ayırmaya çalışır
+colors = ['orange', 'purple']
 for g_idx, (w_list, gamma_list) in enumerate(groups_maxmin):
     for idx, (w, gamma) in enumerate(zip(w_list, gamma_list)):
         if abs(w[1]) > 1e-6:
@@ -257,17 +280,100 @@ ax2.set_ylim(-5, 5)
 plt.tight_layout()
 plt.savefig('separability_comparison.png', dpi=300, bbox_inches='tight')
 print("\nGörsel 'separability_comparison.png' olarak kaydedildi.")
+
+# ============================================================
+# 3D GÖRSELLEŞTİRME - Hiper-düzlemleri 3 boyutta göster
+# ============================================================
+print("\n3D görselleştirme hazırlanıyor...")
+
+fig_3d = plt.figure(figsize=(16, 8))
+
+# 1. H-Polyhedral 3D görselleştirme
+ax_3d_1 = fig_3d.add_subplot(121, projection='3d')
+
+# Veri noktalarını 3D'de göster (z=0 düzleminde)
+ax_3d_1.scatter(A[:, 0], A[:, 1], np.zeros(len(A)), c='blue', marker='o', s=50, alpha=0.8, label='Sınıf A (+)')
+ax_3d_1.scatter(B[:, 0], B[:, 1], np.zeros(len(B)), c='red', marker='x', s=50, alpha=0.8, label='Sınıf B (-)')
+
+# Her hiper-düzlemi 3D'de çiz: w_1*x_1 + w_2*x_2 - gamma = 0
+# Bu denklemi z = w_1*x_1 + w_2*x_2 - gamma şeklinde 3D yüzey olarak gösterebiliriz
+x_3d = np.linspace(-5, 5, 30)
+y_3d = np.linspace(-5, 5, 30)
+X_3d, Y_3d = np.meshgrid(x_3d, y_3d)
+
+for idx, (w, gamma) in enumerate(zip(w_list_hpoly, gamma_list_hpoly)):
+    # Hiper-düzlem denklemi: w[0]*x + w[1]*y - gamma = 0
+    # 3D yüzey olarak: Z = w[0]*X + w[1]*Y - gamma
+    Z_plane = w[0] * X_3d + w[1] * Y_3d - gamma
+    ax_3d_1.plot_surface(X_3d, Y_3d, Z_plane, alpha=0.2, cmap='viridis')
+    
+    # z=0 kesişim çizgisini belirgin göster
+    if abs(w[1]) > 1e-6:
+        y_line = (gamma - w[0] * x_range) / w[1]
+        ax_3d_1.plot(x_range, y_line, np.zeros_like(x_range), 'g-', linewidth=2, alpha=0.7)
+
+# z=0 referans düzlemini ekle
+Z_zero = np.zeros_like(X_3d)
+ax_3d_1.plot_surface(X_3d, Y_3d, Z_zero, alpha=0.05, color='gray')
+
+ax_3d_1.set_xlabel('x1')
+ax_3d_1.set_ylabel('x2')
+ax_3d_1.set_zlabel('z = w^T x - γ')
+ax_3d_1.set_title('H-Polyhedral: Hiper-düzlemler (3D)')
+ax_3d_1.legend()
+ax_3d_1.set_xlim(-5, 5)
+ax_3d_1.set_ylim(-5, 5)
+ax_3d_1.view_init(elev=20, azim=45)
+
+# 2. Max-Min 3D görselleştirme
+ax_3d_2 = fig_3d.add_subplot(122, projection='3d')
+
+# Veri noktalarını 3D'de göster
+ax_3d_2.scatter(A[:, 0], A[:, 1], np.zeros(len(A)), c='blue', marker='o', s=50, alpha=0.8, label='Sınıf A (+)')
+ax_3d_2.scatter(B[:, 0], B[:, 1], np.zeros(len(B)), c='red', marker='x', s=50, alpha=0.8, label='Sınıf B (-)')
+
+# Her gruptaki hiper-düzlemleri farklı renklerde göster
+colors_3d = ['orange', 'purple']
+for g_idx, (w_list, gamma_list) in enumerate(groups_maxmin):
+    for w, gamma in zip(w_list, gamma_list):
+        Z_plane = w[0] * X_3d + w[1] * Y_3d - gamma
+        ax_3d_2.plot_surface(X_3d, Y_3d, Z_plane, alpha=0.15, color=colors_3d[g_idx])
+        
+        # z=0 kesişim çizgisini göster
+        if abs(w[1]) > 1e-6:
+            y_line = (gamma - w[0] * x_range) / w[1]
+            ax_3d_2.plot(x_range, y_line, np.zeros_like(x_range), '--', 
+                        color=colors_3d[g_idx], linewidth=2, alpha=0.8)
+
+# z=0 referans düzlemini ekle
+ax_3d_2.plot_surface(X_3d, Y_3d, Z_zero, alpha=0.05, color='gray')
+
+ax_3d_2.set_xlabel('x1')
+ax_3d_2.set_ylabel('x2')
+ax_3d_2.set_zlabel('z = w^T x - γ')
+ax_3d_2.set_title('Max-Min: Hiper-düzlemler (3D)')
+ax_3d_2.legend()
+ax_3d_2.set_xlim(-5, 5)
+ax_3d_2.set_ylim(-5, 5)
+ax_3d_2.view_init(elev=20, azim=45)
+
+plt.tight_layout()
+plt.savefig('separability_3d.png', dpi=300, bbox_inches='tight')
+print("3D görsel 'separability_3d.png' olarak kaydedildi.")
+
 print("\nVeri Yapısı:")
-print("  Sınıf A (Pozitif): Ortada yoğun bir küme (~40 nokta)")
-print("  Sınıf B (Negatif): Çevrede 4 grup (Sağ, Sol, Üst, Alt - her biri ~10 nokta)")
+print("  Sınıf A (Pozitif): İki ayrı mavi küme")
+print("    - Merkez grubu (~25 nokta)")
+print("    - Sağ üst köşe grubu (~15 nokta, x1≈4, x2≈4)")
+print("  Sınıf B (Negatif): İki ayrı kırmızı grup")
+print("    - Merkez çevresi grubu (~48 nokta - sağ, sol, üst, alt)")
+print("    - (2.2, 2.2) noktası çevresi grubu (~14 nokta)")
 print("\nGrup Açıklaması:")
 print("  Max-Min yönteminde 'grup' kavramı:")
-print("    - Her grup, bir alt-bölgeyi ayırmak için kullanılan hiper-düzlemler kümesidir")
-print("    - Grup 1: Sağdaki B grubunu A'dan ayırmaya çalışır")
-print("    - Grup 2: Soldaki B grubunu A'dan ayırmaya çalışır")
-print("    - Grup 3: Üstteki B grubunu A'dan ayırmaya çalışır")
-print("    - Grup 4: Alttaki B grubunu A'dan ayırmaya çalışır")
+print("    - Her grup, bir mavi kümeyi kırmızılardan ayırmak için hiper-düzlemler kümesidir")
+print("    - Grup 1: Merkezdeki mavi kümeyi ayırır (4 hiper-düzlem)")
+print("    - Grup 2: Sağ üst köşedeki mavi kümeyi ayırır (3 hiper-düzlem)")
 print("    - Her grup kendi içinde MIN (en kısıtlayıcı) alır")
 print("    - Gruplar arasında MAX (en esnek) alınır")
-print("    - Bu sayede merkezdeki A'yı çevredeki B'lerden esnek şekilde ayırabilir")
+print("    - Bu sayede her iki mavi kümeyi de kırmızılardan esnek şekilde ayırabilir")
 plt.show()
