@@ -106,7 +106,7 @@ $$
 g(a) < 0, \quad \forall a \in A \qquad \text{ve} \qquad g(b) > 0, \quad \forall b \in B
 $$
 
-**Algoritmanın İşleyişi (İteratif Ayrıştırma):**
+**Algoritmanın İşleyişi:**
 
 Her iterasyonda bir **lineer programlama (LP)** problemi çözülür:
 
@@ -121,8 +121,8 @@ $$
 
 Burada:
 - $a^l \in A^l$: O iterasyonda $A$ kümesinden seçilen bir referans nokta
-- İlk kısıt: $A^l$ kümesindeki noktaların **mümkün olduğunca** $g^l(x) \leq -1$ bölgesine yerleştirilmesi
-- İkinci kısıt: $B$ kümesindeki **tüm** noktaların $g^l(x) > 1$ bölgesinde kalması
+- İlk kısıt: $A^l$ kümesindeki noktaların mümkün olduğunca $g^l(x) \leq -1$ bölgesine yerleştirilmesi
+- İkinci kısıt: $B$ kümesindeki tüm noktaların $g^l(x) > 1$ bölgesinde kalması
 - Amaç fonksiyonu: $A^l$ kümesinden mümkün olduğunca çok noktanın ayrıştırılması (hata toplamı minimize edilir)
 
 Her iterasyonda:
@@ -130,7 +130,7 @@ Her iterasyonda:
 2. $A^l$ kümesinden ayrıştırılan noktalar çıkarılır: $A^{l+1} = \{a_i \in A^l : g^l(a_i) + 1 > 0\}$
 3. $A^{l+1} = \emptyset$ olana kadar devam edilir
 
-**Sonuç:** Final ayrıştırma fonksiyonu tüm iterasyonlardaki fonksiyonların **minimum**'u olarak elde edilir:
+Sonuç: Final ayrıştırma fonksiyonu tüm iterasyonlardaki fonksiyonların minimum'u olarak elde edilir:
 
 $$
 g(x) = \min_{l=1,\ldots,L} g^l(x)
@@ -159,19 +159,19 @@ $$
 
 ### Modified PCF Algoritması
 
-**Orijinal PCF'in Sınırlaması:**
-- Her iterasyonda referans nokta $a^l \in A^l$ **rastgele** seçilir
+*Orijinal PCF'in Sınırlaması:*
+- Her iterasyonda referans nokta $a^l \in A^l$ rastgele seçilir
 - Bu seçim iterasyon sayısını ve ayrıştırma kalitesini doğrudan etkiler
 - Koni tepe noktasının konumu $(a^l, -\gamma^l)$ optimal olmayabilir
 
-**Modifikasyonun Amacı:**
-Referans nokta $a^l$'yi **optimal** şekilde seçerek:
+*Modifikasyonun Amacı:*
+Referans nokta $a^l$'yi optimal şekilde seçerek:
 - İterasyon sayısını azaltmak
 - Ayrıştırma kalitesini artırmak
 
-**Modified PCF'in İşleyişi:**
+*Modified PCF'in İşleyişi:*
 
-Her iterasyon $l$'de, $A^l$ kümesindeki **her** nokta $a_i^l$ için:
+Her iterasyon $l$'de, $A^l$ kümesindeki her nokta $a_i^l$ için:
 
 1. LP problemini çöz ve $B$'den kaç noktanın ayrıştığını say: $\ell_i$
 2. En fazla noktayı ayıran referans noktayı seç:
@@ -179,7 +179,7 @@ Her iterasyon $l$'de, $A^l$ kümesindeki **her** nokta $a_i^l$ için:
    a^l = a^{l_0} \quad \text{burada} \quad l_0 = \arg\max_{i \in I^l} \ell_i
    $$
 
-**Matematiksel Formülasyon (Her aday için):**
+**Matematiksel Formülasyon:**
 
 $A^l$ kümesindeki her $a_i^l$ için aşağıdaki LP çözülür:
 
@@ -194,22 +194,23 @@ $$
 
 Her çözümden elde edilen $\ell_i = |\{a_k \in A^l : g_i(a_k) \leq -1\}|$ (ayrıştırılan nokta sayısı) hesaplanır.
 
-**Avantajları:**
-- **Daha hızlı yakınsama**: En iyi koni pozisyonu seçilir
-- **Daha az iterasyon**: Her adımda maksimum sayıda nokta ayrıştırılır
-- **Daha iyi kalite**: Optimal tepe noktası konumu
+*Avantajları:*
+- *Daha hızlı yakınsama*: En iyi koni pozisyonu seçilir
+- *Daha az iterasyon*: Her adımda maksimum sayıda nokta ayrıştırılır
+- *Daha iyi kalite*: Optimal tepe noktası konumu
 
-**Dezavantajları:**
-- **Hesaplama maliyeti**: $|A^l|$ kez LP çözülmeli (küçük veri setleri için uygun)
-- **Büyük veri setlerinde yavaş**: $m$ büyükse her iterasyon pahalı
+*Dezavantajları:*
+- *Hesaplama maliyeti*: $|A^l|$ kez LP çözülmeli (küçük veri setleri için uygun)
+- *Büyük veri setlerinde yavaş*: $m$ büyükse her iterasyon pahalı
 
-**Ne Zaman Kullanılmalı?**
+*Ne Kullanılmalı?*
 - Veri seti küçük-orta boyutta ise ($m < 1000$ gibi)
 - Ayrıştırma kalitesi kritik ise
 - İterasyon sayısını minimize etmek önemliyse
 
-**Alternatif Yaklaşım (Tam Optimal):**
-Referans nokta $a^l$'yi de **karar değişkeni** yapıp tek bir nonlinear optimizasyon problemi çözmek mümkündür, ancak bu LP'nin avantajını kaybettirir.
+*Alternatif Yaklaşım (Tam Optimal):*
+Referans nokta $a^l$'yi de karar değişkeni yapıp tek bir nonlinear optimizasyon problemi çözmek mümkündür, ancak bu LP'nin avantajını kaybettirir.
+
 
 
 ### Deneysel Sonuçlar: PCF vs Modified PCF
@@ -224,7 +225,11 @@ Ortalama LP sayısı belirgin şekilde azalmıştır (özellikle Heart: 74→27,
 ![PCF Grafiği](pcf_3d_multiview.png)
 
 
-### Referans
+---
 
-Gasimov, R. N., & Ozturk, G. (2006). Separation via polyhedral conic functions. *Optimization Methods and Software*, *21*(3), 527-540.
+### Referanslar
 
+- Astorino, A., & Gaudioso, M. (2002). Polyhedral separability through successive LP. Journal of Optimization Theory and Applications, 112(2), 265–293. https://link.springer.com/article/10.1023/A:1013649822153
+- Bagirov, A. M. (2005). Max–Min separability. Optimization Methods and Software, 20(2–3), 277–296. https://doi.org/10.1080/10556780512331318263
+- Ceylan, G., & Öztürk, G. (2020). Revised polyhedral conic functions algorithm for supervised classification. Turkish Journal of Electrical Engineering and Computer Sciences, 28(5), 2735–2749. https://doi.org/10.3906/elk-2001-62
+- Gasimov, R. N., & Öztürk, G. (2006). Separation via polyhedral conic functions. Optimization Methods and Software, 21(3), 527–540. https://doi.org/10.1080/10556780600723252
